@@ -16,10 +16,13 @@ export default defineConfig({
   plugins: [manifestCspPlugin(), react(), mkcertPlugin(), fusionOpenPlugin(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {
+    // Node resolves `localhost` to ::1 only, but Fusion and some browsers
+    // reach the dev server on 127.0.0.1.
+    host: '127.0.0.1',
     port: 3001,
   },
   worker: {

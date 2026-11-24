@@ -1,8 +1,16 @@
+import path from 'node:path';
+
 import react from '@vitejs/plugin-react';
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
+  // Mirrors the `@/*` alias in vite.config.ts and tsconfig.json.
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
   test: {
     globals: true,
     environment: 'happy-dom',
@@ -18,7 +26,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
-      exclude: ['node_modules/', 'dist/', '.claude/', '.agents/', 'vitest.setup.ts', '**/*.config.ts', '**/*.d.ts'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/main.tsx', 'src/**/*.d.ts'],
     },
   },
 });

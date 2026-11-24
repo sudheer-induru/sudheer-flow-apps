@@ -6,16 +6,24 @@ import App from './App.tsx';
 
 import './styles.css';
 
+// CDF is read only on navigation, selection or Refresh (SPEC SC-006), and each
+// panel offers its own retry, so automatic retries and refetches are off.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
     },
   },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (root === null) throw new Error('Missing #root element');
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
