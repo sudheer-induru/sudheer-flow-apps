@@ -98,6 +98,16 @@ describe(AssetDetailView.name, () => {
     expect(screen.getByRole('checkbox', { name: /Run mode/ })).toHaveAttribute('aria-disabled', 'true');
   });
 
+  it('explains that nothing can be plotted when every series holds text', async () => {
+    const services = stubServices();
+    services.timeSeriesService.getAssetTimeSeries.mockResolvedValue([MODE]);
+    renderDetail(services);
+
+    expect(await screen.findByRole('heading', { name: 'Nothing to plot' })).toBeInTheDocument();
+    expect(screen.queryByText('Pick a series to plot')).not.toBeInTheDocument();
+    expect(services.timeSeriesService.getAggregates).not.toHaveBeenCalled();
+  });
+
   it('adds a series and syncs the selection to the host', async () => {
     const { syncInternalState } = renderDetail();
 

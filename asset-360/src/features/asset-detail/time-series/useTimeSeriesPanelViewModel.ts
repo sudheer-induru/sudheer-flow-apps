@@ -14,7 +14,7 @@ import { DEFAULT_TIME_WINDOW } from '@/host/hostState';
 import { useAppRoute } from '@/router/useAppRoute';
 import type { ServiceErrorKind } from '@/services/cdfError';
 import { errorKindOf } from '@/services/cdfError';
-import { instanceKey, sameInstance } from '@/services/cdm';
+import { instanceKey, MAX_LINKED_INSTANCES, sameInstance } from '@/services/cdm';
 import { useServices } from '@/services/ServicesContext';
 import type { AssetTimeSeries, LatestDatapoint } from '@/services/timeSeriesService';
 
@@ -37,6 +37,7 @@ export type PlottedLine = {
 };
 
 export type ChartModel =
+  | { status: 'no-numeric' }
   | { status: 'nothing-selected' }
   | { status: 'no-data' }
   | { status: 'loading' }
@@ -53,6 +54,8 @@ export type TimeSeriesPanelViewModel = {
   status: 'loading' | 'error' | 'empty' | 'ready';
   errorKind?: ServiceErrorKind;
   rows: SeriesRow[];
+  /** The list reached the read cap, so more linked series may exist. */
+  truncated: boolean;
   latestLoading: boolean;
   latestFailed: boolean;
   selectedCount: number;
@@ -134,6 +137,7 @@ export function useTimeSeriesPanelViewModel(asset: InstanceRef): TimeSeriesPanel
   });
 
   const chart = useMemo<ChartModel>(() => {
+    if (numeric.length === 0) return { status: 'no-numeric' };
     if (selected.length === 0) return { status: 'nothing-selected' };
     if (latest.isPending) return { status: 'loading' };
     if (latest.isError) return { status: 'error', errorKind: errorKindOf(latest.error) ?? 'unknown' };
@@ -154,7 +158,7 @@ export function useTimeSeriesPanelViewModel(asset: InstanceRef): TimeSeriesPanel
       range,
       unitsDiffer: distinctUnits(selected.map((series) => series.unit)).length > 1,
     };
-  }, [aggregates.data, aggregates.error, aggregates.isError, aggregates.isPending, latest, lines, range, selected]);
+  }, [aggregates.data, aggregates.error, aggregates.isError, aggregates.isPending, latest, lines, numeric, range, selected]);
 
   const rows = useMemo<SeriesRow[]>(
     () =>
@@ -200,6 +204,7 @@ export function useTimeSeriesPanelViewModel(asset: InstanceRef): TimeSeriesPanel
     status,
     errorKind: list.isError ? (errorKindOf(list.error) ?? 'unknown') : undefined,
     rows,
+    truncated: (list.data?.length ?? 0) >= MAX_LINKED_INSTANCES,
     latestLoading: latest.isPending && (list.data?.length ?? 0) > 0,
     latestFailed: latest.isError,
     selectedCount: selected.length,

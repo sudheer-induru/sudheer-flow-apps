@@ -158,6 +158,19 @@ describe(listAllInstances.name, () => {
     expect(client.instances.list).toHaveBeenNthCalledWith(2, expect.objectContaining({ cursor: 'c1' }));
   });
 
+  it('stops at the item cap and shrinks the last page to fit', async () => {
+    const client = createClientStub();
+    client.instances.list
+      .mockResolvedValueOnce(listPage([makeNode('CogniteAsset', 'A'), makeNode('CogniteAsset', 'B')], 'c1'))
+      .mockResolvedValueOnce(listPage([makeNode('CogniteAsset', 'C')], 'c2'));
+
+    const result = await listAllInstances(client, cdfTaskRunner, { instanceType: 'node', limit: 2 }, 'CogniteAsset', 3);
+
+    expect(result.map((item) => item.id.externalId)).toEqual(['A', 'B', 'C']);
+    expect(client.instances.list).toHaveBeenCalledTimes(2);
+    expect(client.instances.list).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 1, cursor: 'c1' }));
+  });
+
   it('stops on an empty page even if a cursor is returned', async () => {
     const client = createClientStub();
     client.instances.list.mockResolvedValueOnce(listPage([], 'c1'));

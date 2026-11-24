@@ -12,7 +12,8 @@ import { WorkOrderStatusBadge } from './WorkOrderStatusBadge';
 
 import type { InstanceRef, WorkOrderFilter } from '@/host/hostState';
 import { WORK_ORDER_FILTERS } from '@/host/hostState';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatNumber } from '@/lib/format';
+import { MAX_LINKED_INSTANCES } from '@/services/cdm';
 
 const FILTER_LABEL: Record<WorkOrderFilter, string> = {
   all: 'All',
@@ -90,7 +91,10 @@ export function WorkOrdersPanel({ asset }: { asset: InstanceRef }) {
           <CardTitle as="h2" id="work-orders-heading">
             Work orders
           </CardTitle>
-          <CardDescription>Newest first. Select a row for details.</CardDescription>
+          <CardDescription>
+            Newest first. Select a row for details.
+            {viewModel.truncated && ` Only the first ${formatNumber(MAX_LINKED_INSTANCES)} linked work orders are shown.`}
+          </CardDescription>
         </CardHeaderStart>
         <CardHeaderEnd>
           <SegmentedControl

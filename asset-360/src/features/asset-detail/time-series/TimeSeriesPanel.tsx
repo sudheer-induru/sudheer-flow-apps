@@ -1,22 +1,20 @@
 import { Alert, AlertDescription } from '@cognite/aura/components/alert';
-import { Badge } from '@cognite/aura/components/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardHeaderEnd, CardHeaderStart, CardTitle } from '@cognite/aura/components/card';
-import { CheckboxItem, CheckboxItemControl, CheckboxItemDescription, CheckboxItemLabel } from '@cognite/aura/components/checkbox';
 import { EmptyState, EmptyStateDescription, EmptyStateTitle } from '@cognite/aura/components/empty-state';
-import { ScrollArea } from '@cognite/aura/components/scroll-area';
 import { SegmentedControl, SegmentedControlButton, SegmentedControlList } from '@cognite/aura/components/segmented-control';
 import { Skeleton } from '@cognite/aura/components/skeleton';
 
 import { PanelError, SkeletonRows } from '../PanelState';
 
 import { WINDOW_LABEL } from './chartWindow';
+import { SeriesList } from './SeriesList';
 import { TimeSeriesChart } from './TimeSeriesChart';
-import type { ChartModel, SeriesRow } from './useTimeSeriesPanelViewModel';
+import type { ChartModel } from './useTimeSeriesPanelViewModel';
 import { MAX_PLOTTED_SERIES, useTimeSeriesPanelViewModel } from './useTimeSeriesPanelViewModel';
 
 import type { InstanceRef, TimeWindow } from '@/host/hostState';
 import { TIME_WINDOWS } from '@/host/hostState';
-import { formatDateTime, formatValue } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 
 function isTimeWindow(value: unknown): value is TimeWindow {
   return TIME_WINDOWS.some((window) => window === value);
@@ -67,9 +65,7 @@ export function TimeSeriesPanel({ asset }: { asset: InstanceRef }) {
         {viewModel.status === 'empty' && (
           <EmptyState type="no-results">
             <EmptyStateTitle as="h3">No linked time series</EmptyStateTitle>
-            <EmptyStateDescription>
-              No CogniteTimeSeries lists this asset in its assets property.
-            </EmptyStateDescription>
+            <EmptyStateDescription>No CogniteTimeSeries lists this asset in its assets property.</EmptyStateDescription>
           </EmptyState>
         )}
         {viewModel.status === 'ready' && (
@@ -85,6 +81,7 @@ export function TimeSeriesPanel({ asset }: { asset: InstanceRef }) {
               onToggle={viewModel.toggleSeries}
               rows={viewModel.rows}
               selectedCount={viewModel.selectedCount}
+              truncated={viewModel.truncated}
             />
           </>
         )}
@@ -99,6 +96,15 @@ function ChartArea({ chart }: { chart: ChartModel }) {
       return <Skeleton aria-label="Loading chart" className="h-72 w-full" />;
     case 'error':
       return <PanelError kind={chart.errorKind} subject="datapoints" />;
+    case 'no-numeric':
+      return (
+        <EmptyState className="h-72" type="no-results">
+          <EmptyStateTitle as="h3">Nothing to plot</EmptyStateTitle>
+          <EmptyStateDescription>
+            The linked series hold text or state values. Their latest values are listed below.
+          </EmptyStateDescription>
+        </EmptyState>
+      );
     case 'nothing-selected':
       return (
         <EmptyState className="h-72" type="new-object">
@@ -124,73 +130,4 @@ function ChartArea({ chart }: { chart: ChartModel }) {
         </div>
       );
   }
-}
-
-type SeriesListProps = {
-  rows: SeriesRow[];
-  selectedCount: number;
-  latestLoading: boolean;
-  onToggle: (series: InstanceRef) => void;
-};
-
-function SeriesList({ rows, selectedCount, latestLoading, onToggle }: SeriesListProps) {
-  const atLimit = selectedCount >= MAX_PLOTTED_SERIES;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Linked series</h3>
-        <span className="text-xs text-muted-foreground">
-          {selectedCount} of {MAX_PLOTTED_SERIES} plotted · {rows.length} linked
-        </span>
-      </div>
-      <ScrollArea className="max-h-72">
-        <ul aria-label="Linked time series" className="flex flex-col gap-1">
-          {rows.map((row) => (
-            <li key={row.key}>
-              <CheckboxItem className="items-start rounded-md px-2 py-1.5">
-                <CheckboxItemControl
-                  checked={row.selected}
-                  disabled={!row.plottable || (atLimit && !row.selected)}
-                  onCheckedChange={() => onToggle(row)}
-                />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <CheckboxItemLabel className="flex min-w-0 items-center gap-2">
-                    {row.colorIndex !== undefined && (
-                      <span
-                        aria-hidden
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: `var(--color-chart-${row.colorIndex}-450)` }}
-                      />
-                    )}
-                    <span className="truncate">{row.name ?? row.externalId}</span>
-                    {!row.plottable && (
-                      <Badge background variant="secondary">
-                        {row.kind}
-                      </Badge>
-                    )}
-                  </CheckboxItemLabel>
-                  <CheckboxItemDescription className="flex flex-wrap gap-x-3 text-xs">
-                    <span className="truncate">{row.externalId}</span>
-                    <LatestValue latestLoading={latestLoading} row={row} />
-                  </CheckboxItemDescription>
-                </span>
-              </CheckboxItem>
-            </li>
-          ))}
-        </ul>
-      </ScrollArea>
-    </div>
-  );
-}
-
-function LatestValue({ row, latestLoading }: { row: SeriesRow; latestLoading: boolean }) {
-  if (latestLoading) return <Skeleton className="h-3 w-24" />;
-  if (row.latest === undefined) return <span>No datapoints</span>;
-  return (
-    <span>
-      <span className="font-medium text-foreground">{formatValue(row.latest.value, row.unit)}</span> at{' '}
-      {formatDateTime(row.latest.timestamp)}
-    </span>
-  );
 }

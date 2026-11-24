@@ -10,7 +10,7 @@ import { useAppRoute } from '@/router/useAppRoute';
 import type { WorkOrder } from '@/services/activityService';
 import type { ServiceErrorKind } from '@/services/cdfError';
 import { errorKindOf } from '@/services/cdfError';
-import { instanceKey, sameInstance } from '@/services/cdm';
+import { instanceKey, MAX_LINKED_INSTANCES, sameInstance } from '@/services/cdm';
 
 export type WorkOrderRow = WorkOrder & {
   key: string;
@@ -24,6 +24,8 @@ export type WorkOrdersPanelViewModel = {
   errorKind?: ServiceErrorKind;
   rows: WorkOrderRow[];
   counts: WorkOrderCounts;
+  /** The list reached the read cap, so more linked work orders may exist. */
+  truncated: boolean;
   filter: WorkOrderFilter;
   openWorkOrder?: WorkOrderRow;
   setFilter: (filter: WorkOrderFilter) => void;
@@ -69,6 +71,7 @@ export function useWorkOrdersPanelViewModel(asset: InstanceRef): WorkOrdersPanel
     errorKind: query.isError ? (errorKindOf(query.error) ?? 'unknown') : undefined,
     rows,
     counts,
+    truncated: (query.data?.length ?? 0) >= MAX_LINKED_INSTANCES,
     filter,
     openWorkOrder: openRow,
     setFilter: setWorkOrderFilter,

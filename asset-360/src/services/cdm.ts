@@ -10,6 +10,12 @@ export const CDM_VERSION = 'v1';
 /** Maximum page size of `/models/instances/list` and `/models/instances/search`. */
 export const INSTANCE_PAGE_SIZE = 1000;
 
+/**
+ * Upper bound on linked series or work orders read for one asset (five pages).
+ * A list this long cannot be investigated on one screen, so the UI says it was cut off.
+ */
+export const MAX_LINKED_INSTANCES = 5000;
+
 /** Identity of a data modeling node: the key every panel and deep link joins on. */
 export type InstanceId = {
   space: string;
@@ -145,14 +151,15 @@ export function readInstanceIdList(properties: Record<string, unknown>, key: str
 }
 
 /**
- * Reads every page of an instance list. Following `nextCursor` to the end
- * matters: a panel that reads one page silently truncates.
+ * Reads pages of an instance list by following `nextCursor`, stopping at
+ * `maxItems`. Callers treat a result of exactly `maxItems` as possibly truncated.
  */
 export async function listAllInstances(
   client: InstanceListClient,
   scheduler: TaskScheduler,
   params: InstanceListParams,
-  viewExternalId: string
+  viewExternalId: string,
+  maxItems: number = MAX_LINKED_INSTANCES
 ): Promise<CdmInstance[]> {
   const instances: CdmInstance[] = [];
   let cursor: string | undefined;
@@ -160,9 +167,10 @@ export async function listAllInstances(
   try {
     do {
       const pageCursor = cursor;
-      const page = await scheduler.schedule(() => client.instances.list({ ...params, cursor: pageCursor }));
+      const limit = Math.min(params.limit ?? INSTANCE_PAGE_SIZE, maxItems - instances.length);
+      const page = await scheduler.schedule(() => client.instances.list({ ...params, limit, cursor: pageCursor }));
       instances.push(...readInstances(page.items, viewExternalId));
-      cursor = page.items.length === 0 ? undefined : page.nextCursor;
+      cursor = page.items.length === 0 || instances.length >= maxItems ? undefined : page.nextCursor;
     } while (cursor !== undefined);
   } catch (error) {
     throw toCdfServiceError(error);

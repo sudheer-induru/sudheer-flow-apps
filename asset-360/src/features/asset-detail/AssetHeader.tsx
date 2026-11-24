@@ -14,9 +14,9 @@ import { Fragment } from 'react';
 import type { AssetDetailViewModel, Kpi } from './useAssetDetailViewModel';
 
 import type { InstanceRef } from '@/host/hostState';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatNumber } from '@/lib/format';
 import type { Asset } from '@/services/assetService';
-import { instanceKey, sameInstance } from '@/services/cdm';
+import { instanceKey, MAX_LINKED_INSTANCES, sameInstance } from '@/services/cdm';
 
 type AssetHeaderProps = {
   asset: Asset;
@@ -29,6 +29,10 @@ function ancestorsOf(asset: Asset): InstanceRef[] {
   if (path.length > 0) return path;
   const fallback = [asset.root, asset.parent].filter((node): node is InstanceRef => node !== undefined);
   return fallback.filter((node, index) => !sameInstance(node, asset) && fallback.findIndex((n) => sameInstance(n, node)) === index);
+}
+
+function formatLinkedCount(count: number): string {
+  return count >= MAX_LINKED_INSTANCES ? `${formatNumber(MAX_LINKED_INSTANCES)}+` : formatNumber(count);
 }
 
 export function AssetHeader({ asset, viewModel }: AssetHeaderProps) {
@@ -78,8 +82,8 @@ export function AssetHeader({ asset, viewModel }: AssetHeaderProps) {
             )}
           </div>
           <dl className="grid grid-cols-3 gap-3">
-            <KpiTile label="Linked time series" value={viewModel.timeSeriesCount} format={(count) => String(count)} />
-            <KpiTile label="Open work orders" value={viewModel.openWorkOrders} format={(count) => String(count)} />
+            <KpiTile label="Linked time series" value={viewModel.timeSeriesCount} format={formatLinkedCount} />
+            <KpiTile label="Open work orders" value={viewModel.openWorkOrders} format={formatNumber} />
             <KpiTile
               label="Newest datapoint"
               value={viewModel.newestDatapoint}
