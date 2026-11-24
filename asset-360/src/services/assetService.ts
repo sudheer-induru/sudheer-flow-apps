@@ -18,6 +18,8 @@ import {
   readStringList,
   sameInstance,
 } from './cdm';
+import type { TaskScheduler } from './taskRunner';
+import { cdfTaskRunner } from './taskRunner';
 
 export const ASSET_VIEW = 'CogniteAsset';
 
@@ -46,7 +48,10 @@ export interface AssetService {
 export type AssetServiceClient = InstanceListClient & InstanceSearchClient & InstanceRetrieveClient;
 
 export class CdmAssetService implements AssetService {
-  constructor(private readonly client: AssetServiceClient) {}
+  constructor(
+    private readonly client: AssetServiceClient,
+    private readonly scheduler: TaskScheduler = cdfTaskRunner
+  ) {}
 
   async searchAssets(query: string): Promise<Asset[]> {
     const text = query.trim();
@@ -58,10 +63,12 @@ export class CdmAssetService implements AssetService {
 
   async getAsset(assetId: InstanceId): Promise<Asset | null> {
     try {
-      const response = await this.client.instances.retrieve({
-        items: [{ instanceType: 'node', space: assetId.space, externalId: assetId.externalId }],
-        sources: [{ source: cdmView(ASSET_VIEW) }],
-      });
+      const response = await this.scheduler.schedule(() =>
+        this.client.instances.retrieve({
+          items: [{ instanceType: 'node', space: assetId.space, externalId: assetId.externalId }],
+          sources: [{ source: cdmView(ASSET_VIEW) }],
+        })
+      );
       // `/byids` has no ignoreUnknownIds: a missing node is simply absent.
       const match = readInstances(response.items, ASSET_VIEW).find((instance) =>
         sameInstance(instance.id, assetId)
@@ -79,12 +86,14 @@ export class CdmAssetService implements AssetService {
    */
   private async searchByPrefix(text: string): Promise<Asset[]> {
     try {
-      const response = await this.client.instances.list({
-        instanceType: 'node',
-        sources: [{ source: cdmView(ASSET_VIEW) }],
-        filter: prefixFilter(text),
-        limit: ASSET_SEARCH_LIMIT,
-      });
+      const response = await this.scheduler.schedule(() =>
+        this.client.instances.list({
+          instanceType: 'node',
+          sources: [{ source: cdmView(ASSET_VIEW) }],
+          filter: prefixFilter(text),
+          limit: ASSET_SEARCH_LIMIT,
+        })
+      );
       return readInstances(response.items, ASSET_VIEW).map(toAsset);
     } catch (error) {
       throw toCdfServiceError(error);
@@ -94,14 +103,16 @@ export class CdmAssetService implements AssetService {
   /** `operator` is sent explicitly because the service default changes in November 2026. */
   private async searchByText(text: string): Promise<Asset[]> {
     try {
-      const response = await this.client.instances.search({
-        view: cdmView(ASSET_VIEW),
-        query: text,
-        instanceType: 'node',
-        properties: ['name', 'description'],
-        operator: 'AND',
-        limit: ASSET_SEARCH_LIMIT,
-      });
+      const response = await this.scheduler.schedule(() =>
+        this.client.instances.search({
+          view: cdmView(ASSET_VIEW),
+          query: text,
+          instanceType: 'node',
+          properties: ['name', 'description'],
+          operator: 'AND',
+          limit: ASSET_SEARCH_LIMIT,
+        })
+      );
       return readInstances(response.items, ASSET_VIEW).map(toAsset);
     } catch (error) {
       throw toCdfServiceError(error);

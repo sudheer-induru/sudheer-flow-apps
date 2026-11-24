@@ -1,6 +1,7 @@
 import type { CogniteClient } from '@cognite/sdk';
 
 import { toCdfServiceError } from './cdfError';
+import type { TaskScheduler } from './taskRunner';
 
 /** Everything Asset 360 reads lives in the Cognite-managed Core Data Model. */
 export const CDM_SPACE = 'cdf_cdm';
@@ -149,6 +150,7 @@ export function readInstanceIdList(properties: Record<string, unknown>, key: str
  */
 export async function listAllInstances(
   client: InstanceListClient,
+  scheduler: TaskScheduler,
   params: InstanceListParams,
   viewExternalId: string
 ): Promise<CdmInstance[]> {
@@ -157,7 +159,8 @@ export async function listAllInstances(
 
   try {
     do {
-      const page = await client.instances.list({ ...params, cursor });
+      const pageCursor = cursor;
+      const page = await scheduler.schedule(() => client.instances.list({ ...params, cursor: pageCursor }));
       instances.push(...readInstances(page.items, viewExternalId));
       cursor = page.items.length === 0 ? undefined : page.nextCursor;
     } while (cursor !== undefined);

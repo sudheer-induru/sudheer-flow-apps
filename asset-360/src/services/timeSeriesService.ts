@@ -11,6 +11,8 @@ import {
   readBoolean,
   readString,
 } from './cdm';
+import type { TaskScheduler } from './taskRunner';
+import { cdfTaskRunner } from './taskRunner';
 
 export const TIME_SERIES_VIEW = 'CogniteTimeSeries';
 
@@ -71,11 +73,15 @@ export type TimeSeriesServiceClient = InstanceListClient & {
 };
 
 export class CdmTimeSeriesService implements TimeSeriesService {
-  constructor(private readonly client: TimeSeriesServiceClient) {}
+  constructor(
+    private readonly client: TimeSeriesServiceClient,
+    private readonly scheduler: TaskScheduler = cdfTaskRunner
+  ) {}
 
   async getAssetTimeSeries(assetId: InstanceId): Promise<AssetTimeSeries[]> {
     const instances = await listAllInstances(
       this.client,
+      this.scheduler,
       {
         instanceType: 'node',
         sources: [{ source: cdmView(TIME_SERIES_VIEW) }],
@@ -94,7 +100,9 @@ export class CdmTimeSeriesService implements TimeSeriesService {
       const responses = await Promise.all(
         batches.map((batch) =>
           // ignoreUnknownIds: a shared link may name a series that was deleted since.
-          this.client.datapoints.retrieveLatest(batch.map(toDatapointItem), { ignoreUnknownIds: true })
+          this.scheduler.schedule(() =>
+            this.client.datapoints.retrieveLatest(batch.map(toDatapointItem), { ignoreUnknownIds: true })
+          )
         )
       );
       return responses.flat().flatMap((series) => {
@@ -114,15 +122,17 @@ export class CdmTimeSeriesService implements TimeSeriesService {
   async getAggregates({ ids, start, end, granularity }: AggregateQuery): Promise<SeriesAggregates[]> {
     if (ids.length === 0) return [];
     try {
-      const response = await this.client.datapoints.retrieve({
-        items: ids.map(toDatapointItem),
-        start,
-        end,
-        granularity,
-        aggregates: ['average', 'min', 'max'],
-        limit: AGGREGATE_LIMIT,
-        ignoreUnknownIds: true,
-      });
+      const response = await this.scheduler.schedule(() =>
+        this.client.datapoints.retrieve({
+          items: ids.map(toDatapointItem),
+          start,
+          end,
+          granularity,
+          aggregates: ['average', 'min', 'max'],
+          limit: AGGREGATE_LIMIT,
+          ignoreUnknownIds: true,
+        })
+      );
       return response.flatMap((series) => {
         const id = series.instanceId;
         if (id === undefined) return [];

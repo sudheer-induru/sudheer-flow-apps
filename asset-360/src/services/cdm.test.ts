@@ -17,8 +17,11 @@ import {
   readTimestamp,
   sameInstance,
 } from './cdm';
+import { QueuedTaskRunner } from './taskRunner';
 
 import { createClientStub, listPage, makeNode } from '@/__mocks__/cdf';
+
+const cdfTaskRunner = new QueuedTaskRunner(1);
 
 describe('view references', () => {
   it('pins views to cdf_cdm v1', () => {
@@ -149,7 +152,7 @@ describe(listAllInstances.name, () => {
       .mockResolvedValueOnce(listPage([makeNode('CogniteAsset', 'A')], 'c1'))
       .mockResolvedValueOnce(listPage([makeNode('CogniteAsset', 'B')]));
 
-    const result = await listAllInstances(client, { instanceType: 'node', limit: 1000 }, 'CogniteAsset');
+    const result = await listAllInstances(client, cdfTaskRunner, { instanceType: 'node', limit: 1000 }, 'CogniteAsset');
 
     expect(result.map((item) => item.id.externalId)).toEqual(['A', 'B']);
     expect(client.instances.list).toHaveBeenNthCalledWith(2, expect.objectContaining({ cursor: 'c1' }));
@@ -159,7 +162,7 @@ describe(listAllInstances.name, () => {
     const client = createClientStub();
     client.instances.list.mockResolvedValueOnce(listPage([], 'c1'));
 
-    const result = await listAllInstances(client, { instanceType: 'node' }, 'CogniteAsset');
+    const result = await listAllInstances(client, cdfTaskRunner, { instanceType: 'node' }, 'CogniteAsset');
 
     expect(result).toEqual([]);
     expect(client.instances.list).toHaveBeenCalledTimes(1);
@@ -169,7 +172,7 @@ describe(listAllInstances.name, () => {
     const client = createClientStub();
     client.instances.list.mockRejectedValueOnce(new CogniteError('Forbidden', 403));
 
-    await expect(listAllInstances(client, { instanceType: 'node' }, 'CogniteAsset')).rejects.toMatchObject({
+    await expect(listAllInstances(client, cdfTaskRunner, { instanceType: 'node' }, 'CogniteAsset')).rejects.toMatchObject({
       kind: 'no-access',
     });
   });

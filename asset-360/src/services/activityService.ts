@@ -8,6 +8,8 @@ import {
   readStringList,
   readTimestamp,
 } from './cdm';
+import type { TaskScheduler } from './taskRunner';
+import { cdfTaskRunner } from './taskRunner';
 
 export const ACTIVITY_VIEW = 'CogniteActivity';
 
@@ -32,11 +34,15 @@ export interface ActivityService {
 export type ActivityServiceClient = InstanceListClient;
 
 export class CdmActivityService implements ActivityService {
-  constructor(private readonly client: ActivityServiceClient) {}
+  constructor(
+    private readonly client: ActivityServiceClient,
+    private readonly scheduler: TaskScheduler = cdfTaskRunner
+  ) {}
 
   async getAssetWorkOrders(assetId: InstanceId): Promise<WorkOrder[]> {
     const instances = await listAllInstances(
       this.client,
+      this.scheduler,
       {
         instanceType: 'node',
         sources: [{ source: cdmView(ACTIVITY_VIEW) }],
