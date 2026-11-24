@@ -20,6 +20,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Node resolves `localhost` to ::1 only, but Fusion and some browsers
+    // reach the dev server on 127.0.0.1.
+    host: '127.0.0.1',
     port: 3001,
   },
   worker: {
