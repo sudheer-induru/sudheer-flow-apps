@@ -77,10 +77,21 @@ export function isAppState(value: unknown): value is AppState {
   );
 }
 
-/** A detail view without an asset cannot render, so it falls back to search. */
+function toRef({ space, externalId }: InstanceRef): InstanceRef {
+  return { space, externalId };
+}
+
+/**
+ * Drops unknown fields from restored references, and sends a detail view
+ * without an asset back to search because it cannot render.
+ */
 function normalize(state: AppState): AppState {
-  if (state.view === 'detail' && state.asset === undefined) return { ...state, view: 'search' };
-  return state;
+  const next: AppState = { ...state };
+  if (state.asset !== undefined) next.asset = toRef(state.asset);
+  if (state.series !== undefined) next.series = state.series.map(toRef);
+  if (state.workOrder !== undefined) next.workOrder = toRef(state.workOrder);
+  if (next.view === 'detail' && next.asset === undefined) next.view = 'search';
+  return next;
 }
 
 /** Parses the host's `initialState`; anything unusable degrades to the search view. */

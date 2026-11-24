@@ -60,6 +60,22 @@ describe(parseAppState.name, () => {
     });
   });
 
+  it('drops unknown fields from restored references', () => {
+    const raw = JSON.stringify({
+      view: 'detail',
+      asset: { ...ASSET, name: 'extra' },
+      series: [{ space: 's', externalId: 'ts', unit: 'bar' }],
+      workOrder: { space: 's', externalId: 'WO', status: 'x' },
+    });
+
+    expect(parseAppState(raw)).toEqual({
+      view: 'detail',
+      asset: ASSET,
+      series: [{ space: 's', externalId: 'ts' }],
+      workOrder: { space: 's', externalId: 'WO' },
+    });
+  });
+
   it('normalizes a detail view without an asset to search', () => {
     expect(parseAppState(JSON.stringify({ view: 'detail', query: 'x' }))).toEqual({ view: 'search', query: 'x' });
   });
