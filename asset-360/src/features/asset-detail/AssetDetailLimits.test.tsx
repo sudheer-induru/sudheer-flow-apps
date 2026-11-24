@@ -5,6 +5,7 @@ import { AssetDetailView } from './AssetDetailView';
 
 import { createServiceStubs, createTestProviders } from '@/__mocks__/providers';
 
+// Lowers the read cap so the cut-off notices can be exercised without 5,000 fixtures.
 vi.mock('@/services/cdm', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   MAX_LINKED_INSTANCES: 2,
